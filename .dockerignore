@@ -1,0 +1,7 @@
+target
+.idea
+.claude
+.agents
+docs
+ajedrez.db
+*.iml

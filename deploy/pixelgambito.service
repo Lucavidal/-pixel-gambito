@@ -1,0 +1,19 @@
+# Servicio systemd para un VPS (Ubuntu/Debian). Mantiene el servidor corriendo y lo levanta al reiniciar.
+# Instalación:
+#   sudo cp pixelgambito.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now pixelgambito
+#   journalctl -u pixelgambito -f      (ver el log)
+# Cambiar "usuario" por el usuario del servidor. ajedrez.db queda en WorkingDirectory.
+[Unit]
+Description=Pixel Gambito (ajedrez web)
+After=network.target
+
+[Service]
+User=usuario
+WorkingDirectory=/home/usuario/pixelgambito
+# Sin HTTPS (se entra por http://IP:8080): quitar -Dchess.secureCookie=true
+ExecStart=/usr/bin/java -Xmx256m -Djava.awt.headless=true -Dchess.port=8080 -Dchess.secureCookie=true -jar tpo-chess-1.0.0.jar web
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

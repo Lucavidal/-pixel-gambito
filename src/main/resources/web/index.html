@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>  <!-- lo pone i18n.js con el nombre de brand.js -->
+  <link rel="icon" href="data:,">
+  <!-- Tema e idioma ANTES de pintar (si no, se ve un instante el otro tema). La misma lógica que theme.js e i18n.js:
+       lo que eligió la persona antes; si nunca eligió, lo que pide el sistema / el navegador. -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var theme = null, lang = null;
+      try { theme = localStorage.getItem('ajedrez.tema'); lang = localStorage.getItem('ajedrez.idioma'); } catch (e) { /* bloqueado */ }
+      if (theme !== 'dark' && theme !== 'light') {
+        theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      if (lang !== 'es' && lang !== 'en') {
+        lang = (navigator.language || 'es').toLowerCase().indexOf('es') === 0 ? 'es' : 'en';
+      }
+      root.dataset.theme = theme;
+      root.style.colorScheme = theme;
+      root.lang = lang;
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Three.js viene incluido en /vendor: el tablero funciona sin internet. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.min.js",
+        "three/addons/": "./vendor/three/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <!-- El canvas de Three.js se agrega acá -->
+    <div id="viewport"></div>
+
+    <!-- Inicio: el tablero 3D (el canvas de fondo) queda a la izquierda y el texto a la derecha -->
+    <section id="screen-home" class="home" hidden aria-labelledby="home-title">
+      <div class="home-copy faded" id="home-copy">
+        <p class="eyebrow home-eyebrow" data-i18n="common.eyebrow">TPO · Ingeniería de Software</p>
+        <h1 class="home-title" id="home-title" data-i18n="app.title"></h1>
+        <p class="home-tagline" data-i18n="brand.tagline"></p>
+        <p class="home-lede" data-i18n="home.lede">Movés, capturás y deshacés jugadas sobre un tablero hecho a mano. Las reglas las decide el servidor.</p>
+        <button type="button" class="play-button" id="btn-play" data-i18n="home.play">Jugar</button>
+        <p class="home-links">
+          <button type="button" class="link-button" id="btn-howto" data-i18n="home.howto">Cómo se juega</button>
+        </p>
+      </div>
+
+      <dialog id="howto" class="card features howto" aria-labelledby="howto-title">
+        <h2 class="features-title" id="howto-title" data-i18n="home.howto">Cómo se juega</h2>
+        <ul>
+          <li data-i18n-html="howto.select"></li>
+          <li data-i18n-html="howto.move"></li>
+          <li data-i18n-html="howto.esc"></li>
+          <li data-i18n-html="howto.undo"></li>
+          <li data-i18n-html="howto.camera"></li>
+        </ul>
+        <form method="dialog" class="features-actions">
+          <button id="btn-howto-close" class="primary" data-i18n="howto.ok">Entendido</button>
+        </form>
+      </dialog>
+    </section>
+
+    <!-- Inicio de sesión: el tablero 3D queda de fondo -->
+    <section id="screen-login" class="screen" hidden aria-labelledby="login-title">
+      <div class="card auth-card">
+        <a class="back-link" href="#/inicio" data-i18n="login.back">← Volver al inicio</a>
+        <p class="eyebrow" data-i18n="common.eyebrow">TPO · Ingeniería de Software</p>
+        <h1 class="hero" id="login-title" data-i18n="login.title"></h1>
+        <p class="lede" data-i18n="login.lede"></p>
+
+        <div class="segments" role="tablist" data-i18n-aria="login.tabs">
+          <button type="button" role="tab" id="tab-login" aria-controls="form-login" aria-selected="true" data-i18n="login.tabLogin">Iniciar sesión</button>
+          <button type="button" role="tab" id="tab-register" aria-controls="form-register" aria-selected="false" tabindex="-1" data-i18n="login.tabRegister">Crear cuenta</button>
+        </div>
+
+        <form id="form-login" class="form" role="tabpanel" aria-labelledby="tab-login" novalidate>
+          <label class="field"><span data-i18n="login.username">Usuario</span>
+            <input name="username" autocomplete="username" autocapitalize="off" spellcheck="false">
+          </label>
+          <label class="field"><span data-i18n="login.password">Contraseña</span>
+            <input name="password" type="password" autocomplete="current-password">
+          </label>
+          <p class="hint" data-i18n="login.firstTime"></p>
+          <p class="form-error" role="alert"></p>
+          <button type="submit" class="primary" data-i18n="login.submit">Entrar</button>
+        </form>
+
+        <form id="form-register" class="form" role="tabpanel" aria-labelledby="tab-register" novalidate hidden>
+          <label class="field"><span data-i18n="login.username">Usuario</span>
+            <input name="username" autocomplete="username" autocapitalize="off" spellcheck="false" aria-describedby="hint-username">
+          </label>
+          <p class="hint" id="hint-username" data-i18n="login.usernameHint"></p>
+          <label class="field"><span><span data-i18n="login.displayName">¿Cómo te llamamos?</span> <span class="optional" data-i18n="login.optional">(opcional)</span></span>
+            <input name="displayName" autocomplete="nickname" maxlength="30" aria-describedby="hint-display-name">
+          </label>
+          <p class="hint" id="hint-display-name" data-i18n="login.displayNameHint"></p>
+          <label class="field"><span data-i18n="login.password">Contraseña</span>
+            <input name="password" type="password" autocomplete="new-password" aria-describedby="hint-password">
+          </label>
+          <p class="hint" id="hint-password" data-i18n="login.passwordHint"></p>
+          <label class="field"><span data-i18n="login.repeat">Repetir contraseña</span>
+            <input name="repeat" type="password" autocomplete="new-password">
+          </label>
+          <p class="form-error" role="alert"></p>
+          <button type="submit" class="primary" data-i18n="login.registerSubmit">Crear cuenta y entrar</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Menú principal: las mismas opciones que la ventana Swing -->
+    <section id="screen-menu" class="screen" hidden aria-labelledby="menu-greeting">
+      <div class="menu">
+        <header class="menu-head">
+          <div>
+            <p class="eyebrow" data-i18n="menu.eyebrow"></p>
+            <h1 class="hero" id="menu-greeting"></h1>
+            <p class="lede"><span data-i18n="menu.question">¿Qué querés jugar?</span> <span class="menu-record" id="menu-record"></span></p>
+          </div>
+          <div class="menu-actions">
+            <a class="button" href="#/inicio" data-i18n="menu.home">Inicio</a>
+            <button id="btn-logout" type="button" data-i18n="menu.logout">Cerrar sesión</button>
+          </div>
+        </header>
+
+        <div class="tiles">
+          <a class="tile" id="tile-free" href="#/libre">
+            <span class="tile-title" data-i18n="menu.free.title">Partida libre</span>
+            <span class="tile-text" data-i18n="menu.free.text"></span>
+            <span class="tile-cta" data-i18n="menu.free.cta">Jugar →</span>
+          </a>
+          <a class="tile featured" id="tile-tournament" href="#/torneo">
+            <span class="tile-title" data-i18n="menu.tournament.title">Torneo escalera</span>
+            <span class="tile-text" data-i18n="menu.tournament.text"></span>
+            <ol class="tile-ladder" id="menu-ladder"></ol>
+            <span class="tile-cta" id="tournament-cta" data-i18n="menu.tournament.entry">Entrar al torneo →</span>
+          </a>
+          <a class="tile" id="tile-history" href="#/historial">
+            <span class="tile-title" data-i18n="menu.history.title">Mi historial</span>
+            <span class="tile-text" data-i18n="menu.history.text"></span>
+            <span class="tile-cta" data-i18n="menu.history.cta">Ver historial →</span>
+          </a>
+          <button class="tile" id="btn-features" type="button">
+            <span class="tile-title" data-i18n="menu.features.title">Qué incluye el juego</span>
+            <span class="tile-text" data-i18n="menu.features.text"></span>
+            <span class="tile-cta" data-i18n="menu.features.cta">Ver detalle →</span>
+          </button>
+        </div>
+      </div>
+
+      <dialog id="features" class="card features" aria-labelledby="features-title">
+        <h2 class="features-title" id="features-title" data-i18n="menu.features.title">Qué incluye el juego</h2>
+        <h3 data-i18n="features.rules">Reglas del ajedrez</h3>
+        <ul>
+          <li data-i18n="features.rules.1"></li>
+          <li data-i18n="features.rules.2"></li>
+          <li data-i18n-html="features.rules.3"></li>
+          <li data-i18n="features.rules.4"></li>
+          <li data-i18n="features.rules.5"></li>
+        </ul>
+        <h3 data-i18n="features.free">Partida libre (dos personas)</h3>
+        <ul>
+          <li data-i18n="features.free.1"></li>
+          <li data-i18n-html="features.free.2"></li>
+          <li data-i18n="features.free.3"></li>
+        </ul>
+        <h3 data-i18n="features.tournament">Torneo escalera contra la IA</h3>
+        <ul>
+          <li><span data-i18n="features.tournament.1"></span>
+            <ul id="features-rivals"></ul></li>
+          <li data-i18n-html="features.tournament.2"></li>
+          <li data-i18n-html="features.tournament.3"></li>
+          <li data-i18n="features.tournament.4"></li>
+        </ul>
+        <h3 data-i18n="features.account">Cuenta e historial</h3>
+        <ul>
+          <li data-i18n="features.account.1"></li>
+          <li data-i18n="features.account.2"></li>
+          <li data-i18n="features.account.3"></li>
+        </ul>
+        <form method="dialog" class="features-actions">
+          <button id="btn-features-close" class="primary" data-i18n="features.close">Cerrar</button>
+        </form>
+      </dialog>
+    </section>
+
+    <!-- Mi historial: las rondas del torneo guardadas en la cuenta (como HistoryDialog en Swing) -->
+    <section id="screen-history" class="screen" hidden aria-labelledby="history-title">
+      <div class="card history-card">
+        <header class="history-head">
+          <div>
+            <p class="eyebrow" data-i18n="history.eyebrow">Torneo escalera</p>
+            <h1 class="hero" id="history-title" data-i18n="history.title">Mi historial</h1>
+            <p class="lede" id="history-summary"></p>
+          </div>
+          <div class="history-actions">
+            <a class="button" href="#/torneo" data-i18n="history.toTournament">Ir al torneo</a>
+            <a class="button" href="#/menu" data-i18n="history.toMenu">Volver al menú</a>
+          </div>
+        </header>
+        <div class="history-filter" role="group" data-i18n-aria="history.filter" id="history-filter"></div>
+        <div class="history-stats" id="history-stats" aria-hidden="true"></div>
+        <div class="history-table-wrap">
+          <table class="history-table" id="history-table" data-i18n-aria="history.table">
+            <thead>
+              <tr>
+                <th scope="col" data-i18n="history.col.date">Fecha</th>
+                <th scope="col" data-i18n="history.col.round">Ronda</th>
+                <th scope="col" data-i18n="history.col.rival">Rival</th>
+                <th scope="col" data-i18n="history.col.difficulty">Dificultad</th>
+                <th scope="col" data-i18n="history.col.result">Resultado</th>
+                <th scope="col" class="num" data-i18n="history.col.moves">Jugadas</th>
+              </tr>
+            </thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+        <p class="history-empty-text" id="history-empty-text" hidden></p>
+      </div>
+    </section>
+
+    <!-- Partida libre y torneo: el HUD encima del tablero (3D en el canvas, o 2D acá) -->
+    <div id="screen-game" hidden>
+    <div id="board2d" class="board2d" hidden></div>
+    <header class="panel status-panel">
+      <p class="eyebrow" id="game-eyebrow" data-i18n="game.eyebrow.libre">Partida libre</p>
+      <h1 data-i18n="game.title"></h1>
+      <div class="turn">
+        <span class="turn-dot" id="turn-dot"></span>
+        <span id="turn-text"></span>
+      </div>
+      <p class="status" id="status-text" aria-live="polite"></p>
+      <p class="last-move" id="last-move"></p>
+
+      <!-- Solo en el torneo: escalera, ficha del rival y "pensando…" -->
+      <section id="tournament-info" class="tournament-info" hidden data-i18n-aria="tournament.aria">
+        <p class="t-round" id="t-round"></p>
+        <ol class="ladder" id="t-ladder"></ol>
+        <div class="rival-card">
+          <p class="rival-label" data-i18n="tournament.rivalLabel">Tu rival</p>
+          <p class="rival-name" id="t-rival-name"></p>
+          <p class="rival-meta" id="t-rival-meta"></p>
+          <p class="rival-text" id="t-rival-text"></p>
+        </div>
+        <p class="thinking" id="t-thinking" aria-live="polite" hidden></p>
+      </section>
+    </header>
+
+    <aside class="panel history-panel">
+      <h2 data-i18n="game.moves">Jugadas</h2>
+      <ol id="history" class="history"></ol>
+      <p class="history-empty" id="history-empty" data-i18n="game.noMoves">Todavía no hay jugadas.</p>
+    </aside>
+
+    <nav class="toolbar" data-i18n-aria="game.actions">
+      <button id="btn-undo" type="button" data-i18n="game.undo" data-i18n-title="game.undoTitle">Deshacer</button>
+      <button id="btn-redo" type="button" data-i18n="game.redo" data-i18n-title="game.redoTitle">Rehacer</button>
+      <button id="btn-flip" type="button" data-i18n-title="game.flipTitle"></button>
+      <button id="btn-view" type="button" data-i18n-title="game.viewTitle"></button>
+      <button id="btn-reset" type="button" class="danger"></button>
+      <button id="btn-history" type="button" hidden data-i18n="game.myHistory">Mi historial</button>
+      <button id="btn-home" type="button" data-i18n="game.home" data-i18n-title="game.homeTitle">Inicio</button>
+      <button id="btn-menu" type="button" data-i18n="game.menu">Volver al menú</button>
+    </nav>
+
+    <div id="banner" class="banner" hidden>
+      <p class="banner-title" id="banner-title"></p>
+      <p class="banner-sub" id="banner-sub"></p>
+      <button id="btn-banner-reset" type="button" data-i18n="banner.again">Jugar otra</button>
+    </div>
+
+    <!-- Torneo: elegir desde qué dificultad empieza la escalera -->
+    <div id="level-picker" class="banner level-picker" role="dialog" aria-labelledby="level-title" hidden>
+      <p class="banner-title" id="level-title" data-i18n="level.title">Elegí la dificultad</p>
+      <p class="banner-sub" data-i18n="level.sub"></p>
+      <div class="level-options" id="level-options"></div>
+      <div class="banner-actions">
+        <button id="btn-level-cancel" type="button"></button>
+      </div>
+    </div>
+
+    <!-- Torneo: aviso al terminar cada ronda (mismo mensaje que la ventana Swing) -->
+    <div id="round-banner" class="banner round-banner" role="dialog" aria-labelledby="round-title" aria-describedby="round-text" hidden>
+      <p class="banner-title" id="round-title"></p>
+      <p class="banner-sub round-text" id="round-text"></p>
+      <div class="banner-actions">
+        <button id="btn-round-next" type="button" class="primary"></button>
+        <button id="btn-round-menu" type="button" data-i18n="round.menu">Volver al menú</button>
+      </div>
+    </div>
+    </div>
+
+    <!-- Preferencias: tema e idioma, arriba a la derecha en todas las pantallas -->
+    <div class="prefs" id="prefs" role="group" data-i18n-aria="prefs.label">
+      <button type="button" class="pref-button" id="btn-theme">
+        <!-- Luna (se ve en claro: pasa a oscuro) y sol (se ve en oscuro: pasa a claro) -->
+        <svg class="icon icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+        <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <div class="lang-switch" id="lang-switch" role="group" data-i18n-aria="prefs.lang">
+        <svg class="icon icon-globe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"/></svg>
+        <button type="button" class="lang-option" data-lang="es" lang="es" aria-label="Español">ES</button>
+        <button type="button" class="lang-option" data-lang="en" lang="en" aria-label="English">EN</button>
+      </div>
+    </div>
+
+    <!-- Footer: derechos de autor y contacto, en todas las pantallas. El nombre, el año y el mail salen de brand.js.
+         En el celular se parte en dos líneas: "© 2026 Pixel Gambito · UADE" / el mail. -->
+    <footer class="site-footer" id="site-footer" data-i18n-aria="footer.aria">
+      <span class="footer-line">
+        <span data-i18n="footer.copyright"></span><span class="footer-wide"> · <span data-i18n="footer.project"></span></span>
+        · <span data-i18n="footer.school"></span>
+      </span>
+      <span class="footer-sep footer-wide" aria-hidden="true"> · </span>
+      <span class="footer-line">
+        <span class="footer-wide" data-i18n="footer.contact"></span>
+        <a class="footer-link" id="footer-mail" data-i18n-aria="footer.mailAria"></a>
+        · <button type="button" class="footer-link" id="btn-credits" data-i18n="footer.credits"></button>
+      </span>
+    </footer>
+
+    <dialog id="credits" class="card features credits" aria-labelledby="credits-title">
+      <h2 class="features-title" id="credits-title" data-i18n="credits.title"></h2>
+      <ul>
+        <li data-i18n="credits.models"></li>
+        <li data-i18n="credits.tech"></li>
+      </ul>
+      <p class="credits-rights"><span data-i18n="footer.copyright"></span>. <span data-i18n="credits.rights"></span></p>
+      <form method="dialog" class="features-actions">
+        <button id="btn-credits-close" class="primary" data-i18n="credits.close"></button>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="assertive"></div>
+
+    <!-- Pantalla de carga de los modelos .glb -->
+    <div id="loader" class="loader">
+      <p class="loader-title" data-i18n="loader.title"></p>
+      <div class="loader-bar"><span id="loader-fill"></span></div>
+      <p class="loader-text" id="loader-text" data-i18n="loader.text">Cargando piezas…</p>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

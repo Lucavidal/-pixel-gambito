@@ -1,0 +1,810 @@
+/* Estilo del HUD: sobrio, para que el protagonista sea el tablero.
+   TODOS los colores son variables. El tema oscuro es el de siempre (:root); el claro las redefine en
+   [data-theme="light"] (lo pone theme.js en <html>). Los colores con transparencia usan canales RGB
+   (--ink-rgb, --surface-rgb...) para escribir rgb(var(--ink-rgb) / 0.12) y que cambien con el tema. */
+:root {
+  --bg: #2b2a28;                /* el mismo que pinta el canvas 3D (scene.js) */
+  --bg-loader: #0b090d;
+  --ink: #efe6d4;
+  --ink-rgb: 239 230 212;       /* tinta: texto y los rellenos/bordes translúcidos encima de los paneles */
+  --ink-soft: #a99d8a;
+  --ink-faint: #6f6658;
+  --ink-strong: #fbf6ea;        /* el título grande del inicio */
+  --surface-rgb: 20 16 22;      /* paneles, tarjetas y carteles */
+  --surface-raised-rgb: 28 22 30;
+  --backdrop-rgb: 11 9 13;      /* el velo detrás del login, el menú y los diálogos */
+  --input-bg: rgb(11 9 13 / 0.6);
+  --autofill-bg: #120e14;
+  --table-head-bg: #17131a;
+  --panel: rgb(var(--surface-rgb) / 0.72);
+  --line: rgb(var(--ink-rgb) / 0.1);
+  --gold: #d8b46a;              /* el acento: rellenos (botones) */
+  --gold-rgb: 216 180 106;
+  --gold-hover: #e5c47e;
+  --gold-bright: #ebcc8c;
+  --gold-deep: #94733a;
+  --accent-text: #d8b46a;       /* el acento como TEXTO (en claro se oscurece para llegar a 4.5:1) */
+  --on-gold: #1b1408;
+  --red: #e0584f;
+  --red-rgb: 224 88 79;
+  --green: var(--green);
+  --green-rgb: 127 191 138;
+  --easy: #8fbf98;
+  --medium: #cfb27a;
+  --hard: #e08074;
+  --hard-rgb: 224 128 116;
+  --shadow-rgb: 0 0 0;
+  --shadow-k: 1;                /* en claro las sombras son más suaves */
+  --white-side: #e8e0cc;
+  --black-side: #1e1626;
+  /* Tablero 2D de noche (de día lo redefine el tema claro, como el 3D) */
+  --board-light: #ecedd5;
+  --board-dark: #6f9466;
+  --board-frame: #1f4331;
+  --board-ink: #000;
+  --board-mark-rgb: 22 35 28;
+  --board-last-rgb: 240 217 92;
+  --board-selected-rgb: 61 139 217;
+  --board-check-rgb: 224 58 44;
+  --board-focus: #2b6cb0;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  /* Títulos del inicio: sans muy pesada del sistema (Segoe UI Black en Windows), sin depender de internet */
+  --display: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Roboto, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--sans);
+  /* Fondo liso: el mismo color que pinta el canvas 3D (BACKGROUND en scene.js) */
+  background: var(--bg);
+}
+
+#app, #viewport { position: fixed; inset: 0; }
+#viewport canvas { display: block; outline: none; touch-action: none; }
+
+.panel {
+  position: fixed;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Estado: turno y jaque */
+.status-panel { top: 20px; left: 20px; padding: 16px 20px 14px; min-width: 240px; }
+.eyebrow {
+  margin: 0 0 2px;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+h1 { margin: 0 0 12px; font-family: var(--serif); font-weight: 500; font-size: 30px; letter-spacing: 0.01em; }
+.turn { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.turn-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--white-side);
+  box-shadow: 0 0 0 2px rgb(var(--ink-rgb) / 0.25);
+  transition: background 0.25s ease;
+}
+.turn-dot.black { background: var(--black-side); box-shadow: 0 0 0 2px rgb(var(--ink-rgb) / 0.45); }
+.status:empty { display: none; }
+.status { margin: 8px 0 0; min-height: 1.3em; font-size: 14px; color: var(--ink-soft); }
+.status.check { color: var(--red); font-weight: 600; animation: pulse 1.1s ease-in-out infinite; }
+
+@keyframes pulse { 50% { opacity: 0.55; } }
+
+/* Historial de jugadas */
+.history-panel {
+  top: 20px; right: 20px; width: 220px;
+  max-height: calc(100% - 120px);
+  padding: 14px 8px 12px 16px;
+  display: flex; flex-direction: column;
+}
+h2 {
+  margin: 0 0 8px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.history {
+  margin: 0; padding: 0 8px 0 0; list-style: none;
+  overflow-y: auto;
+  font-family: var(--mono); font-size: 13px; line-height: 1.75;
+  font-variant-numeric: tabular-nums;
+}
+.history li { display: grid; grid-template-columns: 2.2em 1fr 1fr; }
+.history .n { color: var(--ink-faint); }
+.history .last { color: var(--accent-text); }
+.history-empty { margin: 0; font-size: 13px; color: var(--ink-faint); }
+
+/* Botones */
+.toolbar {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  display: flex; gap: 8px; padding: 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+button {
+  font: inherit; font-size: 14px;
+  color: var(--ink);
+  background: rgb(var(--ink-rgb) / 0.06);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+}
+button:hover:not(:disabled) { background: rgb(var(--ink-rgb) / 0.13); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.35; cursor: default; }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button.danger:hover:not(:disabled) { background: rgb(var(--red-rgb) / 0.2); }
+
+/* Cartelito con el motivo de un movimiento rechazado */
+.toast {
+  position: fixed; top: 22px; left: 50%;
+  transform: translate(-50%, -12px);
+  padding: 10px 16px;
+  max-width: min(420px, calc(100% - 32px));
+  background: rgb(var(--surface-rgb) / 0.92);
+  border: 1px solid rgb(var(--red-rgb) / 0.45);
+  border-radius: 10px;
+  font-size: 14px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.info { border-color: rgb(var(--gold-rgb) / 0.45); }
+
+/* Fin de partida */
+.banner {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  padding: 22px 30px; text-align: center;
+  background: rgb(var(--surface-rgb) / 0.9);
+  border: 1px solid rgb(var(--gold-rgb) / 0.35);
+  border-radius: 16px;
+}
+.banner[hidden] { display: none; }
+.banner-title { margin: 0; font-family: var(--serif); font-size: 30px; }
+.banner-sub { margin: 4px 0 16px; color: var(--ink-soft); }
+
+/* Pantalla de carga */
+.loader {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: var(--bg-loader);
+  transition: opacity 0.45s ease;
+}
+.loader.done { opacity: 0; pointer-events: none; }
+.loader-title { margin: 0; font-family: var(--serif); font-size: 24px; }
+.loader-bar { width: 220px; height: 3px; background: rgb(var(--ink-rgb) / 0.12); border-radius: 2px; overflow: hidden; }
+.loader-bar span { display: block; height: 100%; width: 0; background: var(--gold); transition: width 0.2s ease; }
+.loader-text { margin: 0; font-size: 13px; color: var(--ink-soft); }
+.loader.error .loader-text { color: var(--red); }
+
+/* Pantallas angostas: el historial se achica y la barra ocupa el ancho */
+@media (max-width: 760px) {
+  .status-panel { top: 12px; left: 12px; padding: 12px 14px; min-width: 0; }
+  h1 { font-size: 22px; margin-bottom: 8px; }
+  .history-panel { top: 12px; right: 12px; width: 150px; max-height: 38%; }
+  .toolbar { left: 12px; right: 12px; bottom: 12px; transform: none; flex-wrap: wrap; justify-content: center; }
+  button { padding: 8px 10px; font-size: 13px; }
+}
+
+/* Celular: el historial completo no entra; se muestra solo la última jugada en el panel de estado */
+.last-move { display: none; margin: 6px 0 0; font-family: var(--mono); font-size: 12.5px; color: var(--accent-text); }
+@media (max-width: 560px) {
+  .status-panel { right: 12px; }
+  .history-panel { display: none; }
+  .last-move:not(:empty) { display: block; }
+}
+
+/* ---------- Pantallas: inicio de sesión y menú (el tablero 3D queda de fondo) ---------- */
+
+[hidden] { display: none !important; }
+
+.screen {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  background: rgb(var(--backdrop-rgb) / 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.card {
+  background: rgb(var(--surface-rgb) / 0.88);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  color: var(--ink);
+}
+
+.hero { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 40px; line-height: 1.1; }
+.lede { margin: 8px 0 0; color: var(--ink-soft); font-size: 15px; line-height: 1.5; }
+
+/* Inicio de sesión */
+.auth-card { width: min(400px, 100%); padding: 28px 28px 24px; margin: auto; }
+.auth-card .lede { margin-bottom: 22px; }
+
+.segments {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  padding: 4px; margin-bottom: 18px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+.segments button { border: 0; background: transparent; color: var(--ink-soft); border-radius: 8px; }
+.segments button[aria-selected="true"] { background: rgb(var(--ink-rgb) / 0.12); color: var(--ink); font-weight: 600; }
+
+.form { display: flex; flex-direction: column; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--ink-soft); }
+.field:first-child { margin-top: 0; }
+.field input {
+  font: inherit; font-size: 15px;
+  color: var(--ink);
+  background: var(--input-bg);
+  border: 1px solid rgb(var(--ink-rgb) / 0.16);
+  border-radius: 9px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease;
+}
+.field input:focus { outline: none; border-color: var(--gold); }
+.field input[aria-invalid] { border-color: var(--red); }
+.hint { margin: 6px 0 0; font-size: 12.5px; color: var(--ink-faint); }
+.form-error { margin: 12px 0 0; font-size: 13.5px; line-height: 1.4; color: var(--red); }
+.form-error:empty { display: none; }
+.form button[type="submit"] { margin-top: 18px; }
+
+button.primary {
+  background: var(--gold); color: var(--on-gold); border-color: transparent; font-weight: 600;
+}
+button.primary:hover:not(:disabled) { background: var(--gold-hover); }
+
+/* Menú principal */
+.menu { width: min(760px, 100%); margin: auto; }
+.menu-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.tile {
+  display: flex; flex-direction: column; gap: 8px;
+  min-height: 150px; padding: 20px;
+  text-align: left; text-decoration: none;
+  font: inherit; color: var(--ink);
+  background: rgb(var(--surface-rgb) / 0.88);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+a.tile:hover, button.tile:hover { border-color: rgb(var(--gold-rgb) / 0.5); background: rgb(var(--surface-raised-rgb) / 0.92); }
+a.tile:active, button.tile:active { transform: translateY(1px); }
+.tile:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.tile.featured { border-color: rgb(var(--gold-rgb) / 0.3); }
+.tile.soon { cursor: default; opacity: 0.55; }
+.tile-title { font-family: var(--serif); font-size: 22px; }
+.tile-text { font-size: 14px; line-height: 1.5; color: var(--ink-soft); }
+.tile-cta { margin-top: auto; padding-top: 6px; font-size: 14px; font-weight: 600; color: var(--accent-text); }
+.tile.soon .tile-cta { color: var(--ink-faint); font-weight: 500; }
+
+/* "Qué incluye el juego" */
+.features {
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100% - 48px);
+  padding: 24px 26px 20px;
+  overflow-y: auto;
+}
+.features::backdrop { background: rgb(var(--backdrop-rgb) / 0.6); }
+.features-title { margin: 0 0 4px; font-family: var(--serif); font-size: 26px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.features h3 { margin: 18px 0 6px; font-size: 14px; color: var(--accent-text); }
+.features ul { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.55; color: var(--ink-soft); }
+.features li + li { margin-top: 4px; }
+.features b { color: var(--ink); }
+.features-actions { display: flex; justify-content: flex-end; margin-top: 20px; }
+
+@media (max-width: 560px) {
+  .hero { font-size: 32px; }
+  .auth-card { padding: 22px 18px 18px; }
+  .menu-head { align-items: flex-start; flex-direction: column; }
+  .tiles { grid-template-columns: 1fr; }
+  .tile { min-height: 0; }
+}
+
+/* ---------- Tablero 2D: los mismos colores y marcas que BoardPanel (Swing) ---------- */
+
+.board2d {
+  --light: var(--board-light);
+  --dark: var(--board-dark);
+  --frame: var(--board-frame);
+  position: fixed; left: 50%; top: calc(50% - 26px);
+  transform: translate(-50%, -50%);
+  width: max(240px, min(calc(100vh - 190px), calc(100vw - 560px), 680px));
+  padding: 8px;
+  background: var(--frame);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgb(var(--shadow-rgb) / calc(0.45 * var(--shadow-k)));
+  container-type: inline-size;   /* 1cqw = 1% del ancho del tablero: las figuras escalan con él */
+}
+.board2d-grid { display: grid; grid-template-columns: repeat(8, 1fr); }
+.board2d-row { display: contents; }
+
+.board2d .sq {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 0;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+  font-size: 10cqw;              /* 80 % de la casilla, como en Swing */
+  line-height: 1;
+  color: var(--board-ink);
+  cursor: pointer;
+  transition: none;
+}
+.board2d .sq.light { background-color: var(--light); }
+.board2d .sq.dark { background-color: var(--dark); }
+.board2d .sq:active { transform: none; }
+.board2d .sq:focus-visible { outline: 3px solid var(--board-focus); outline-offset: -3px; z-index: 2; }
+
+/* Capa de color: última jugada (amarillo), elegida (azul), mouse encima (blanco) */
+.board2d .sq::before { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.board2d .sq.last::before { background: rgb(var(--board-last-rgb) / 0.56); }
+.board2d .sq.selected::before { background: rgb(var(--board-selected-rgb) / 0.5); }
+.board2d .sq:hover:not(.selected)::before { box-shadow: inset 0 0 0 100px rgb(255 255 255 / 0.25);  /* sobre el tablero 2D: igual en los dos temas */ }
+
+/* Rey en jaque: resplandor rojo desde el centro */
+.board2d .sq.check { background-image: radial-gradient(circle, rgb(var(--board-check-rgb) / 0.88) 0%, rgb(var(--board-check-rgb) / 0) 72%); }
+
+/* Destinos legales: punto = casilla libre, anillo = captura */
+.board2d .sq::after { content: none; position: absolute; pointer-events: none; border-radius: 50%; }
+.board2d .sq.target::after { content: ""; inset: 37.5%; background: rgb(var(--board-mark-rgb) / 0.38); }
+.board2d .sq.capture::after { content: ""; inset: 4%; border: 1.05cqw solid rgb(var(--board-mark-rgb) / 0.38); }
+
+.board2d .glyph { position: relative; z-index: 1; pointer-events: none; }
+.board2d .glyph.ghost {
+  position: absolute; z-index: 3;
+  display: grid; place-items: center;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+  font-size: 10cqw; line-height: 1; color: var(--board-ink);
+}
+
+.board2d .coord {
+  position: absolute;
+  font-family: var(--sans); font-size: max(9px, 1.7cqw); font-weight: 700; line-height: 1;
+  pointer-events: none;
+}
+.board2d .coord.file { right: 5%; bottom: 5%; }
+.board2d .coord.rank { left: 5%; top: 5%; }
+.board2d .sq.light .coord { color: var(--dark); }
+.board2d .sq.dark .coord { color: var(--light); }
+
+@media (max-width: 1000px) {
+  .board2d { top: calc(50% + 6px); width: max(240px, min(calc(100vh - 290px), calc(100vw - 32px))); }
+}
+@media (max-width: 560px) {
+  .board2d { padding: 5px; width: max(240px, min(calc(100vh - 320px), calc(100vw - 24px))); }
+}
+
+/* ---------- Torneo: escalera, ficha del rival, "pensando…" y aviso de fin de ronda ---------- */
+
+.status-panel:has(.tournament-info:not([hidden])) { width: 290px; }
+.tournament-info { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.t-round {
+  margin: 0 0 8px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.ladder { margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+.ladder-step {
+  display: grid; grid-template-columns: 18px 1fr; column-gap: 6px;
+  padding: 5px 0;
+  color: var(--ink-faint);
+}
+.ladder-mark { grid-row: span 2; text-align: center; line-height: 1.35; }
+.ladder-name { color: var(--ink-soft); }
+.ladder-meta { font-size: 12px; }
+.ladder-step.playing .ladder-name { color: var(--ink); font-weight: 600; }
+.ladder-step.playing .ladder-mark { color: var(--accent-text); }
+.ladder-step.won .ladder-mark { color: var(--green); }
+.ladder-step.lost .ladder-mark, .ladder-step.lost .ladder-name { color: var(--red); }
+
+.rival-card {
+  margin-top: 10px; padding: 10px 12px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.rival-label { margin: 0; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); }
+.rival-name { margin: 2px 0 0; font-family: var(--serif); font-size: 19px; }
+.rival-meta { margin: 2px 0 0; font-size: 13px; color: var(--accent-text); }
+.rival-text { margin: 6px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-soft); }
+
+.thinking { margin: 10px 0 0; font-size: 13.5px; color: var(--accent-text); }
+.thinking::after { content: "…"; display: inline-block; animation: thinking 1.2s steps(4, end) infinite; overflow: hidden; vertical-align: bottom; width: 0; }
+@keyframes thinking { to { width: 1.1em; } }
+
+.round-banner { max-width: min(420px, calc(100% - 32px)); z-index: 5; }
+.round-banner.champion { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 20px 60px rgb(var(--gold-rgb) / 0.25); }
+.round-banner.lost { border-color: rgb(var(--red-rgb) / 0.5); }
+.round-text { white-space: pre-line; line-height: 1.5; }
+.banner-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+/* Selector de dificultad del torneo */
+.level-picker { width: min(560px, calc(100% - 32px)); z-index: 6; }
+.level-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.level-option {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 14px; text-align: left;
+  border-radius: 12px;
+}
+.level-name { font-family: var(--serif); font-size: 21px; }
+.level-text { font-size: 12.5px; line-height: 1.45; color: var(--ink-soft); }
+.level-option.easy .level-name { color: var(--green); }
+.level-option.medium .level-name { color: var(--accent-text); }
+.level-option.hard .level-name { color: var(--red); }
+.level-option[aria-pressed="true"] { border-color: var(--gold); background: rgb(var(--gold-rgb) / 0.12); }
+@media (max-width: 560px) {
+  .level-options { grid-template-columns: 1fr; }
+}
+
+/* La escalera en la tarjeta del menú */
+.tile-ladder li.hint { white-space: normal; color: var(--ink-faint); }
+.tile-ladder { margin: 4px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--ink-soft); }
+.tile-ladder li { padding: 2px 0; white-space: pre; }
+.tile-ladder li.won { color: var(--green); }
+.tile-ladder li.lost { color: var(--red); }
+.tile-ladder li.playing { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 760px) {
+  .status-panel:has(.tournament-info:not([hidden])) { width: auto; max-width: calc(100% - 190px); }
+  .ladder, .rival-text, .rival-label { display: none; }
+  .rival-card { margin-top: 0; padding: 0; background: none; border: 0; }
+  .tournament-info { margin-top: 8px; padding-top: 8px; }
+}
+@media (max-width: 560px) {
+  .status-panel:has(.tournament-info:not([hidden])) { max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thinking::after { animation: none; width: auto; }
+}
+
+/* ---------- Mi historial ---------- */
+
+.menu-record { display: block; margin-top: 4px; font-size: 14px; color: var(--accent-text); }
+.menu-record:empty { display: none; }
+
+/* Un link con forma de botón (navega a otra pantalla) */
+a.button {
+  display: inline-block;
+  font-size: 14px; text-decoration: none;
+  color: var(--ink);
+  background: rgb(var(--ink-rgb) / 0.06);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 9px 14px;
+  transition: background 0.15s ease;
+}
+a.button:hover { background: rgb(var(--ink-rgb) / 0.13); }
+a.button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.history-card { width: min(820px, 100%); margin: auto; padding: 26px 28px 22px; }
+.history-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.history-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+.history-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0 6px; }
+.stat {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 14px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.stat-value { font-family: var(--serif); font-size: 28px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat-label { font-size: 12.5px; color: var(--ink-soft); }
+.stat.won .stat-value { color: var(--green); }
+.stat.lost .stat-value { color: var(--red); }
+.stat.champion .stat-value { color: var(--accent-text); }
+
+.history-table-wrap { margin-top: 14px; max-height: min(52vh, 460px); overflow: auto; }
+.history-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.history-table th {
+  position: sticky; top: 0;
+  padding: 8px 10px; text-align: left;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-faint);
+  background: var(--table-head-bg);
+  border-bottom: 1px solid var(--line);
+}
+.history-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); color: var(--ink-soft); }
+.history-table .num { text-align: right; }
+.history-table tbody tr:hover td { background: rgb(var(--ink-rgb) / 0.04); }
+.history-table .outcome { font-weight: 600; }
+.history-table .outcome.won { color: var(--green); }
+.history-table .outcome.lost { color: var(--red); }
+.history-table .outcome.drawn { color: var(--ink); }
+.history-table .outcome.champion { color: var(--accent-text); }
+.history-empty-text { margin: 22px 0 6px; color: var(--ink-soft); line-height: 1.5; }
+
+@media (max-width: 640px) {
+  .history-card { padding: 20px 16px 16px; }
+  .history-head { flex-direction: column; align-items: flex-start; }
+  .history-stats { grid-template-columns: repeat(2, 1fr); }
+  .history-table th:nth-child(2), .history-table td:nth-child(2) { display: none; }  /* la ronda: el rival ya la dice */
+}
+
+/* Formularios y barras de scroll oscuros, y sin el celeste del autocompletado de Chrome */
+:root { color-scheme: dark; }
+.field input:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  box-shadow: 0 0 0 100px var(--autofill-bg) inset;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status.check { animation: none; }
+}
+
+/* ---------- Inicio: el tablero es el canvas de fondo (a la izquierda) y el texto va a la derecha ---------- */
+
+.home {
+  position: fixed; inset: 0;
+  display: grid; grid-template-columns: 1fr 1fr;
+  overflow-x: hidden; overflow-y: auto;
+}
+.home-copy {
+  grid-column: 2;
+  align-self: center;
+  max-width: 680px;
+  padding: 32px 48px 32px 16px;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.home-copy.faded { opacity: 0; transform: translateY(8px); pointer-events: none; }
+
+.home-eyebrow { margin-bottom: 18px; font-size: 12px; font-weight: 600; letter-spacing: 0.16em; color: var(--accent-text); }
+.home-title {
+  margin: 0;
+  font-family: var(--display); font-weight: 900;
+  font-size: clamp(40px, 4.4vw, 72px); line-height: 1.02; letter-spacing: -0.025em;
+  color: var(--ink-strong);
+}
+.home-title-line { white-space: nowrap; }
+.home-lede { margin: 20px 0 0; max-width: 30em; font-size: 17px; line-height: 1.55; color: var(--ink-soft); }
+
+/* Botón principal "físico": sombra inferior marcada que se achica al apretarlo */
+.play-button {
+  display: block;
+  width: min(360px, 100%); height: 64px; margin-top: 34px;
+  font-family: var(--display); font-size: 21px; font-weight: 800; letter-spacing: 0.01em;
+  color: var(--on-gold);
+  background: var(--gold);
+  border: 0; border-radius: 14px;
+  box-shadow: 0 5px 0 var(--gold-deep), 0 14px 28px rgb(var(--shadow-rgb) / calc(0.35 * var(--shadow-k)));
+  transition: background 0.15s ease, transform 0.08s ease, box-shadow 0.08s ease;
+}
+.play-button:hover:not(:disabled) { background: var(--gold-bright); }
+.play-button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 3px 0 var(--gold-deep), 0 8px 18px rgb(var(--shadow-rgb) / calc(0.35 * var(--shadow-k))); }
+.play-button:focus-visible { outline: 2px solid var(--ink-strong); outline-offset: 4px; }
+
+.home-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 22px 0 0; font-size: 14px; color: var(--ink-faint); }
+.link-button {
+  padding: 2px 0;
+  font: inherit; font-size: 14px;
+  color: var(--ink-soft);
+  background: none; border: 0; border-radius: 4px;
+  text-decoration: underline; text-decoration-color: rgb(var(--ink-rgb) / 0.3); text-underline-offset: 4px;
+  cursor: pointer;
+}
+.link-button:hover:not(:disabled) { background: none; color: var(--ink); text-decoration-color: var(--gold); }
+.link-button:active:not(:disabled) { transform: none; }
+.link-button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.howto { width: min(460px, calc(100% - 32px)); }
+
+/* Volver al inicio desde iniciar sesión y desde el menú */
+.back-link { display: inline-block; margin-bottom: 14px; font-size: 13px; color: var(--ink-soft); text-decoration: none; }
+.back-link:hover { color: var(--ink); }
+.back-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+.menu-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* El HUD de la partida espera al estado del servidor (después del vuelo de la cámara) */
+#screen-game { transition: opacity 0.25s ease; }
+#screen-game.pending { opacity: 0; pointer-events: none; }
+
+/* Angosto: se apila. Arriba el tablero (55 % del alto, lo encuadra scene.js), abajo el texto a lo ancho */
+@media (max-width: 899px) {
+  .home { grid-template-columns: 1fr; grid-template-rows: 55% auto; }
+  .home-copy { grid-column: 1; grid-row: 2; align-self: start; max-width: none; padding: 0 16px 16px; }
+  .home-eyebrow { margin-bottom: 8px; font-size: 11px; }
+  .home-title { font-size: clamp(30px, 8.4vw, 48px); }
+  .home-lede { margin-top: 10px; font-size: 15px; line-height: 1.5; }
+  .play-button { width: 100%; height: 60px; margin-top: 18px; font-size: 19px; }
+  .home-links { margin-top: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-copy, #screen-game { transition: none; }
+  .home-copy.faded { transform: none; }
+}
+
+/* ---------- Mi historial: filtro y columna de dificultad ---------- */
+
+.history-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 0; }
+.history-filter:empty { display: none; }
+.filter-option {
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  background: transparent;
+  border-radius: 999px;
+}
+.filter-option[aria-pressed="true"] { color: var(--ink); background: rgb(var(--ink-rgb) / 0.12); border-color: rgb(var(--ink-rgb) / 0.3); font-weight: 600; }
+.filter-option.easy[aria-pressed="true"] { border-color: rgb(var(--green-rgb) / 0.6); }
+.filter-option.medium[aria-pressed="true"] { border-color: rgb(var(--gold-rgb) / 0.6); }
+.filter-option.hard[aria-pressed="true"] { border-color: rgb(var(--hard-rgb) / 0.6); }
+
+/* Un color suave por nivel: se distingue sin competir con el resultado (que va en negrita) */
+.history-table .difficulty.easy { color: var(--easy); }
+.history-table .difficulty.medium { color: var(--medium); }
+.history-table .difficulty.hard { color: var(--hard); }
+.history-table .difficulty.none { color: var(--ink-faint); }
+
+.field .optional { color: var(--ink-faint); }
+
+/* ---------- Tema claro: fondo crema, paneles blancos translúcidos, texto oscuro, el mismo acento ---------- */
+/* Contraste del texto sobre el fondo (#ebe6dc) y sobre los paneles blancos: --ink 15:1, --ink-soft 6.6:1,
+   --ink-faint 4.6:1, --accent-text 5.1:1, --red 5.4:1, --green 5.8:1 (todos >= 4.5:1). */
+:root[data-theme="light"] {
+  --bg: #ebe6dc;
+  --bg-loader: #e4ded2;
+  --ink: #221c17;
+  --ink-rgb: 34 28 23;
+  --ink-soft: #564c42;
+  --ink-faint: #6b6054;
+  --ink-strong: #1d1712;
+  --surface-rgb: 255 255 255;
+  --surface-raised-rgb: 255 255 255;
+  --backdrop-rgb: 235 230 220;
+  --input-bg: rgb(255 255 255 / 0.92);
+  --autofill-bg: #ffffff;
+  --table-head-bg: #f6f2ea;
+  --panel: rgb(var(--surface-rgb) / 0.78);
+  --line: rgb(var(--ink-rgb) / 0.14);
+  --accent-text: #7a5a1c;
+  --red: #b3261e;
+  --red-rgb: 179 38 30;
+  --green: #2e6b3a;
+  --green-rgb: 46 107 58;
+  --easy: #2e6b3a;
+  --medium: #7a5a1c;
+  --hard: #a3352b;
+  --hard-rgb: 163 53 43;
+  --shadow-k: 0.45;
+  /* Tablero de día: arena y madera clara (los mismos colores que el 3D en board.js) */
+  --board-light: #f0d9b5;
+  --board-dark: #b58863;
+  --board-frame: #7a5634;
+}
+
+/* El aviso de arriba baja en pantallas angostas para no quedar debajo de los controles */
+@media (max-width: 560px) {
+  .toast { top: 64px; }
+}
+
+/* El cambio de tema es suave (200 ms). theme.js pone la clase solo mientras cambia (y nunca con movimiento reducido). */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease,
+    fill 0.2s ease, stroke 0.2s ease, text-decoration-color 0.2s ease !important;
+}
+
+/* ---------- Preferencias: modo nocturno e idioma, arriba a la derecha en todas las pantallas ---------- */
+
+.prefs {
+  position: fixed; top: 12px; right: 12px; z-index: 20;
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.pref-button {
+  display: grid; place-items: center;
+  width: 34px; height: 34px; padding: 0;
+  color: var(--ink-soft);
+  background: transparent; border: 0; border-radius: 9px;
+}
+.pref-button:hover:not(:disabled) { color: var(--ink); }
+.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* En oscuro se ofrece el sol (pasar a claro); en claro, la luna */
+:root[data-theme="dark"] .icon-moon,
+:root[data-theme="light"] .icon-sun { display: none; }
+
+.lang-switch { display: flex; align-items: center; gap: 2px; padding-left: 6px; border-left: 1px solid var(--line); color: var(--ink-faint); }
+.lang-switch .icon { width: 16px; height: 16px; margin-right: 2px; }
+.lang-option {
+  min-width: 34px; height: 34px; padding: 0 6px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  background: transparent; border: 0; border-radius: 9px;
+}
+.lang-option[aria-pressed="true"] { color: var(--ink); background: rgb(var(--ink-rgb) / 0.12); }
+
+/* Que los controles no tapen nada: el resto baja lo que ocupan (44 px + márgenes) */
+.loader { z-index: 30; }
+.history-panel { top: 68px; max-height: calc(100% - 168px); }
+.screen { padding-top: 68px; }
+@media (max-width: 760px) {
+  .status-panel { top: 60px; }
+  .history-panel { top: 60px; }
+}
+
+/* ---------- Marca: el lema debajo del nombre en el inicio ---------- */
+.home-tagline {
+  margin: 10px 0 0;
+  font-family: var(--display); font-weight: 800;
+  font-size: clamp(22px, 2.4vw, 32px); line-height: 1.15; letter-spacing: -0.01em;
+  color: var(--accent-text);
+}
+@media (max-width: 899px) {
+  .home-tagline { margin-top: 6px; font-size: clamp(19px, 5.4vw, 26px); }
+}
+
+/* ---------- Footer: derechos de autor y contacto, en todas las pantallas ---------- */
+/* No roba clics: el footer entero deja pasar el mouse (al tablero, a la pantalla) y solo los links lo toman. */
+.site-footer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  font-size: 12.5px; line-height: 1.5; text-align: center;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+.footer-link {
+  pointer-events: auto;
+  padding: 0; border: 0; border-radius: 3px;
+  font: inherit; color: inherit;
+  background: none;
+  text-decoration: underline; text-decoration-color: rgb(var(--ink-rgb) / 0.3); text-underline-offset: 3px;
+  cursor: pointer;
+}
+.footer-link:hover:not(:disabled) { color: var(--ink); background: none; text-decoration-color: var(--accent-text); }
+.footer-link:active:not(:disabled) { transform: none; }
+.footer-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.footer-sep { white-space: pre; }
+
+/* Las pantallas que scrollean dejan lugar abajo para el footer */
+.screen { padding-bottom: 64px; }
+
+/* En la partida: más chico, en una franja semitransparente debajo de la barra de botones */
+#app:has(#screen-game:not([hidden])) .site-footer {
+  padding-top: 3px; padding-bottom: calc(3px + env(safe-area-inset-bottom, 0px));
+  font-size: 11px;
+  background: rgb(var(--surface-rgb) / 0.45);
+}
+.toolbar { bottom: 34px; }
+
+/* Panel de créditos */
+.credits { width: min(440px, calc(100% - 32px)); }
+.credits-rights { margin: 14px 0 0; font-size: 14px; color: var(--ink-soft); }
+
+/* Celular: dos líneas, "© 2026 Pixel Gambito · UADE" y el mail (con Créditos al lado) */
+@media (max-width: 760px) {
+  .toolbar { bottom: 44px; }   /* el footer puede ocupar dos líneas */
+}
+@media (max-width: 560px) {
+  .footer-wide { display: none; }
+  .footer-line { display: block; width: 100%; }
+}

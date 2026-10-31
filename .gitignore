@@ -1,0 +1,6 @@
+target/
+.idea/
+.claude/
+*.iml
+# base local: tiene cuentas (hashes de contraseñas) e historial
+ajedrez.db

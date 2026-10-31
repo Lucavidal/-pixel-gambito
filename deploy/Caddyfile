@@ -1,0 +1,6 @@
+# Caddy delante del servidor Java: saca solo el certificado HTTPS para el dominio.
+# Requisitos: el dominio apunta a la IP del VPS y los puertos 80 y 443 están abiertos.
+#   sudo cp Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+midominio.com {
+    reverse_proxy localhost:8080
+}
