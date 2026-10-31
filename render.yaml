@@ -1,0 +1,11 @@
+# Blueprint de Render: en render.com -> New -> Blueprint -> elegir este repositorio.
+# Plan gratis: se duerme sin visitas y el disco no es persistente (ajedrez.db se reinicia).
+services:
+  - type: web
+    name: pixel-gambito
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: CHESS_SECURE_COOKIE
+        value: "true"
